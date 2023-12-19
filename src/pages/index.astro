@@ -1,0 +1,218 @@
+---
+import Layout from "../layouts/Layout.astro";
+const method = Astro.request.method;
+const fileids: string[] = [];
+
+if (method === "POST") {
+  const TOKEN: string = import.meta.env.TG_BOT_TOKEN;
+  const CHAT_ID: string = import.meta.env.BOT_NAME;
+  const tgurl: string = `https://api.telegram.org/bot${TOKEN}/sendDocument`;
+  try {
+    const data: FormData = await Astro.request.formData();
+
+    for (const file of data.getAll("file") as File[]) {
+      try {
+        if (file.size < 1 || file.size > 20 * 1024 * 1024) {
+          continue;
+        }
+
+        const formData: FormData = new FormData();
+        formData.append("chat_id", CHAT_ID);
+        formData.append("document", file);
+        const req: Response = await fetch(tgurl, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!req.ok) {
+          throw new Error(
+            `Failed to upload file: ${req.status} - ${req.statusText}`
+          );
+        }
+
+        const res: any = await req.json();
+        fileids.push(res.result.document.file_id);
+      } catch (error) {
+        console.error("Error uploading file:", error);
+      }
+    }
+
+    for (const url of data.getAll("url") as string[]) {
+      try {
+        // if (!url.match(/\.(jpeg|jpg|gif|png)$/)) {
+        //   continue;
+        // }
+        const ffile: Response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/octet-stream",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; rv:78.0) Gecko/20100101 Firefox/78.0",
+          },
+        });
+
+        if (!ffile.ok) {
+          throw new Error(
+            `Failed to fetch URL: ${ffile.status} - ${ffile.statusText}`
+          );
+        }
+
+        const blob: Blob = await ffile.blob();
+
+        const formData: FormData = new FormData();
+        formData.append("chat_id", CHAT_ID);
+        formData.append("document", blob);
+        const req: Response = await fetch(tgurl, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!req.ok) {
+          throw new Error(
+            `Failed to upload document: ${req.status} - ${req.statusText}`
+          );
+        }
+
+        const res: any = await req.json();
+        fileids.push(res.result.document.file_id);
+      } catch (error) {
+        continue;
+      }
+    }
+  } catch (error) {
+    console.error("Error retrieving form data:", error);
+  }
+}
+---
+
+<Layout title="TGCDN">
+  <main data-theme="light" class="">
+
+    <div class="flex items-center justify-center p-6 rounded-md">
+      <div class="mx-auto w-full max-w-[550px] bg-white rounded-lg shadow-md">
+        <form class="py-6 px-8" method="POST" enctype="multipart/form-data">
+          <div class="mb-6">
+            <label
+              for="url"
+              class="block text-lg font-semibold text-[#4B5563] mb-2"
+            >
+              Upload by URL
+            </label>
+            <input
+              type="text"
+              name="url"
+              id="url"
+              placeholder="https://example.com/file.jpg"
+              class="w-full rounded-md border border-[#CBD5E0] bg-gray-100 py-3 px-4 text-base text-[#4B5563] placeholder-[#A0AEC0] focus:outline-none focus:border-[#6A64F1] focus:shadow-md"
+            />
+          </div>
+          <p
+            class="text-[#4B5563] flex justify-center items-center text-2xl font-bold font-sans mb-6"
+          >
+            <span class="mr-3 border-b border-[#6A64F1] w-full"></span>
+             Or
+            <span class="ml-3 border-b border-[#6A64F1] w-full"></span>
+          </p>
+
+          <div class="mb-8">
+            <div class="mb-4">
+              <label
+                class="block mb-2 text-base font-medium text-[#4B5563]"
+                for="file_input">Choose file</label
+              >
+              <input
+                class="block w-full text-base text-[#4B5563] border border-[#CBD5E0] rounded-lg cursor-pointer bg-gray-100 focus:outline-none focus:border-[#6A64F1] focus:shadow-md"
+                aria-describedby="file_input_help"
+                id="file_input"
+                type="file"
+                name="file"
+                multiple
+              />
+              <p class="mt-1 text-base text-[#4B5563]" id="file_input_help">
+                SVG, PNG, JPG, or GIF (MAX. 20MB).
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <button
+              class="w-full rounded-md bg-[#6A64F1] py-3 text-base font-semibold text-white outline-none hover:bg-[#524BD4] focus:outline-none"
+            >
+              Upload File
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {
+      fileids.map((fileid) => (
+        <div class="flex items-center justify-center p-2 rounded-md">
+          <div class="mx-auto w-full max-w-[550px] bg-white rounded-lg shadow-md">
+            <div class="py-4 px-8">
+              <div class="mb-6">
+                <label
+                  for="url"
+                  class="block text-lg font-semibold text-[#07074D] mb-2"
+                >
+                  Uploaded file
+                </label>
+                <div class="flex items-center">
+                  <a
+                    id="fileLink"
+                    class="block w-full rounded-md border border-[#6A64F1] text-[#6A64F1] py-2 px-4 text-center text-base font-medium hover:bg-[#6A64F1] hover:text-white transition duration-300 ease-in-out"
+                    href={"/image?id=" + fileid}
+                  >
+                    View Uploaded File
+                  </a>
+                  <button
+                    id="copyButton"
+                    class="ml-4 bg-[#6A64F1] text-white py-2 px-1 rounded-md hover:bg-[#483EDB] transition duration-300 ease-in-out"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))
+    }
+  </main>
+</Layout>
+<script>
+  document.getElementById("copyButton")?.addEventListener("click", function () {
+    // Get the file link
+    var fileLink = document.getElementById("fileLink") as HTMLAnchorElement;
+
+    // Create a temporary input element
+    var tempInput = document.createElement("input") as HTMLInputElement;
+    tempInput.value = fileLink.href;
+    document.body.appendChild(tempInput);
+
+    // Select the URL
+    tempInput.select();
+    tempInput.setSelectionRange(0, 99999); /* For mobile devices */
+
+    // Copy the URL to the clipboard
+    document?.execCommand("copy");
+
+    // Remove the temporary input
+    document.body.removeChild(tempInput);
+
+    // Provide feedback to the user
+    alert("URL copied to clipboard: " + tempInput.value);
+  });
+</script>
+
+<style>
+  main {
+    margin: auto;
+    padding: 1rem;
+    width: 800px;
+    max-width: calc(100% - 2rem);
+    color: white;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+</style>
+
