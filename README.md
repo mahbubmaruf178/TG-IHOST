@@ -4,6 +4,8 @@
 
 TG-IHOST is a simple image host bot designed for Telegram. This bot facilitates image uploads to Telegram and provides a corresponding link to the uploaded image.
 
+![Demo Image](https://github.com/mahbubmaruf178/TG-IHOST/blob/main/public/demo.png?raw=true)
+
 ## Installation
 
 ### Steps:
